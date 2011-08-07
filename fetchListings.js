@@ -2,6 +2,7 @@ var jsdom = require('jsdom');
 var $ = require("jquery");
 var request = require('request');
 var async = require("async");
+var fs = require('fs');
 
 function main(){
 	
@@ -33,7 +34,41 @@ function main(){
 }
 
 function loadYelpListingLinks( yelpSubLinks ){
-	console.log( yelpSubLinks );
+	
+	var count = 0;
+	var yelpData = [];
+	
+	$.each( yelpSubLinks, function(i, val){
+		
+		jsdom.env( "http://www.yelp.com" + val, ['http://code.jquery.com/jquery-1.5.min.js'],
+			   	function(errors, window) {
+				
+				window.$(".column-alpha:first").find("li").each( function(){
+					
+					var listing = { };
+					var name = $.trim( window.$(this).find("h2:first").text() ).split(".");
+					name = name[1];
+					
+					listing.url = "http://www.yelp.com" 
+								  + window.$(this).find("h2:first").find("a:first").attr("href");
+					listing.name = name;
+					listing.address = window.$(this).find("address:first").html().replace("<br>", "\n");
+					listing.category = window.$(this).find("dd:first").text();
+					
+					yelpData.push( listing );
+				});
+			
+				count++;
+				if( count == yelpSubLinks.length ){
+					exportYelpListings( yelpData );
+				}
+		});
+		
+	});
+}
+
+function exportYelpListings( yelpData ){
+	fs.writeFile( "yelpData.json", JSON.stringify(yelpData) );
 }
 
 function loadYelpSubListings( yelpLinks ){
@@ -58,4 +93,6 @@ function loadYelpSubListings( yelpLinks ){
 	
 }
 
-main();
+// main();
+var data = JSON.parse( fs.readFileSync("yelpData.json") );
+console.log( data[0] );
